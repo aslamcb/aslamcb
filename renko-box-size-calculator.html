@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Renko Box Size Calculator — NSE India (All F&O)</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #141c2e;
+  --bg-card-hover: #1a2540;
+  --bg-input: #0d1320;
+  --accent-green: #00e676;
+  --accent-green-dim: #00e67622;
+  --accent-red: #ff5252;
+  --accent-red-dim: #ff525222;
+  --accent-amber: #ffab40;
+  --accent-amber-dim: #ffab4022;
+  --accent-blue: #448aff;
+  --accent-blue-dim: #448aff22;
+  --accent-cyan: #18ffff;
+  --accent-purple: #b388ff;
+  --text-primary: #e8edf5;
+  --text-secondary: #8899b4;
+  --text-muted: #4a5f80;
+  --border: #1c2d48;
+  --border-active: #2a3f5f;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+body::before {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    linear-gradient(rgba(28,45,72,0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28,45,72,0.2) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none; z-index: 0;
+}
+.app { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 20px 16px 80px; }
+
+/* Header */
+.header { text-align: center; margin-bottom: 28px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; background: var(--accent-green-dim);
+  border: 1px solid rgba(0,230,118,0.15); border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+  color: var(--accent-green); letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.badge .dot { width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; animation: pulse 2s infinite; }
+.header h1 {
+  font-family: 'JetBrains Mono', monospace; font-size: clamp(22px, 3.5vw, 34px);
+  font-weight: 700; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #e8edf5, #8899b4);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+.header p { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+
+/* Selectors */
+.controls {
+  display: grid; grid-template-columns: 200px 1fr 160px;
+  gap: 12px; margin-bottom: 20px;
+}
+.field label {
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 1.2px; margin-bottom: 6px;
+}
+select, input[type="number"] {
+  width: 100%; padding: 12px 14px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500; outline: none; transition: all 0.2s;
+  appearance: none; -webkit-appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%238899b4' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 30px; cursor: pointer;
+}
+select:focus, input:focus { border-color: var(--accent-green); box-shadow: 0 0 12px rgba(0,230,118,0.1); }
+select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* Search */
+.search-wrap { position: relative; }
+.search-wrap input {
+  width: 100%; padding: 12px 14px 12px 36px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; outline: none; transition: all 0.2s;
+}
+.search-wrap input:focus { border-color: var(--accent-green); }
+.search-wrap::before {
+  content: '🔍'; position: absolute; left: 12px; top: 50%;
+  transform: translateY(-50%); font-size: 13px; pointer-events: none;
+}
+.search-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); max-height: 320px; overflow-y: auto;
+  display: none; box-shadow: var(--shadow);
+}
+.search-dropdown.open { display: block; }
+.search-item {
+  padding: 10px 14px; cursor: pointer; font-size: 13px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid rgba(28,45,72,0.5);
+}
+.search-item:hover { background: var(--bg-card-hover); }
+.search-item .sym { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent-green); font-size: 12px; }
+.search-item .name { color: var(--text-secondary); font-size: 12px; }
+.search-item .price { font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 11px; }
+
+/* Info strip */
+.info-strip {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
+  padding: 16px 20px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.info-item { display: flex; flex-direction: column; gap: 2px; min-width: 100px; }
+.info-item .lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.info-item .val { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; }
+.info-item .val.g { color: var(--accent-green); }
+.info-item .val.a { color: var(--accent-amber); }
+.info-item .val.b { color: var(--accent-blue); }
+
+/* Recommendation Banner */
+.rec-banner {
+  background: linear-gradient(135deg, rgba(0,230,118,0.08), rgba(68,138,255,0.06));
+  border: 1px solid rgba(0,230,118,0.2); border-radius: var(--radius);
+  padding: 24px; margin-bottom: 24px;
+}
+.rec-banner h3 {
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700;
+  color: var(--accent-green); margin-bottom: 16px; letter-spacing: 0.5px;
+}
+.rec-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+}
+.rec-card {
+  background: rgba(0,0,0,0.3); border-radius: var(--radius-sm);
+  padding: 18px; border-left: 3px solid;
+}
+.rec-card.scalp { border-left-color: var(--accent-red); }
+.rec-card.intra { border-left-color: var(--accent-amber); }
+.rec-card.swing { border-left-color: var(--accent-green); }
+.rec-card.pos { border-left-color: var(--accent-blue); }
+.rec-card .rc-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;
+}
+.rec-card .rc-box {
+  font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700;
+  line-height: 1; margin-bottom: 4px;
+}
+.rc-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-bottom: 12px; }
+.rc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rc-detail { display: flex; flex-direction: column; gap: 2px; }
+.rc-detail .dl { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.rc-detail .dv { font-size: 13px; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
+
+/* Traditional Renko Guide */
+.trad-section {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 24px; overflow: hidden;
+}
+.trad-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 10px 16px; text-align: left; font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 1.2px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 11px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--text-primary); border-bottom: 1px solid rgba(28,45,72,0.4); white-space: nowrap;
+}
+tbody tr:hover { background: rgba(255,255,255,0.015); }
+tbody tr:last-child td { border-bottom: none; }
+td.hl { font-weight: 700; }
+td.green { color: var(--accent-green); }
+td.amber { color: var(--accent-amber); }
+td.red { color: var(--accent-red); }
+td.blue { color: var(--accent-blue); }
+.table-wrap { overflow-x: auto; }
+
+/* Notes */
+.notes {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 24px;
+}
+.notes h4 { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 14px; }
+.notes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.note-row { display: flex; gap: 8px; align-items: flex-start; }
+.note-dot { width: 5px; height: 5px; background: var(--accent-cyan); border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.note-txt { font-size: 12px; color: var(--text-secondary); line-height: 1.55; }
+.note-txt strong { color: var(--text-primary); }
+
+/* Formula section */
+.formula-section {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 24px;
+}
+.formula-section h4 { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent-purple); margin-bottom: 14px; }
+.formula-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.formula-card {
+  background: rgba(0,0,0,0.25); border-radius: var(--radius-sm); padding: 16px;
+  border: 1px solid rgba(28,45,72,0.5);
+}
+.formula-card .fc-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.formula-card .fc-formula { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent-green); margin-bottom: 6px; line-height: 1.5; }
+.formula-card .fc-example { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+/* Stat count */
+.stat-bar {
+  display: flex; justify-content: center; gap: 24px; margin-bottom: 20px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted);
+}
+.stat-bar span.num { color: var(--accent-green); font-weight: 700; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+@media (max-width: 768px) {
+  .controls { grid-template-columns: 1fr; }
+  .rec-grid { grid-template-columns: 1fr; }
+  .info-strip { gap: 8px; }
+  .info-item { min-width: 80px; }
+}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="badge"><span class="dot"></span> NSE India · All F&O Stocks · Non-Repaint Renko</div>
+    <h1>Renko Box Size Calculator</h1>
+    <p>Complete database: All 200+ F&O stocks, Index Futures & Options — ATR-based non-repainting box sizes</p>
+  </div>
+
+  <div class="stat-bar">
+    <span><span class="num" id="totalCount">0</span> F&O Instruments</span>
+    <span><span class="num">6</span> Index Derivatives</span>
+    <span><span class="num">7</span> Timeframes</span>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label>Segment</label>
+      <select id="segment" onchange="onSegmentChange()">
+        <option value="index_futures">Index Futures</option>
+        <option value="stock_futures" selected>Stock Futures</option>
+        <option value="index_options">Index Options</option>
+        <option value="stock_options">Stock Options (ATM CE)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Search Instrument</label>
+      <div class="search-wrap">
+        <input type="text" id="searchInput" placeholder="Type symbol or name..." onfocus="openDropdown()" oninput="filterInstruments()">
+        <div class="search-dropdown" id="dropdown"></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ATR Period</label>
+      <select id="atrPeriod" onchange="recalc()">
+        <option value="10">10</option>
+        <option value="14" selected>14 (Standard)</option>
+        <option value="20">20</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="info-strip" id="infoStrip">
+    <div class="info-item"><span class="lbl">Symbol</span><span class="val g" id="iSym">—</span></div>
+    <div class="info-item"><span class="lbl">CMP</span><span class="val" id="iPrice">—</span></div>
+    <div class="info-item"><span class="lbl">ATR(14)</span><span class="val a" id="iATR">—</span></div>
+    <div class="info-item"><span class="lbl">Daily Range</span><span class="val" id="iRange">—</span></div>
+    <div class="info-item"><span class="lbl">Lot Size</span><span class="val b" id="iLot">—</span></div>
+    <div class="info-item"><span class="lbl">Tick</span><span class="val" id="iTick">—</span></div>
+    <div class="info-item"><span class="lbl">ATR %</span><span class="val a" id="iATRP">—</span></div>
+  </div>
+
+  <!-- Recommendation Cards -->
+  <div class="rec-banner" id="recBanner">
+    <h3>⚡ RECOMMENDED BOX SIZES — <span id="recSymbol">NIFTY</span></h3>
+    <div class="rec-grid" id="recGrid"></div>
+  </div>
+
+  <!-- Traditional Renko Guide Table -->
+  <div class="trad-section">
+    <div class="trad-header">📊 Traditional Renko — Clear Box Size Guide</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Style</th>
+            <th>Chart TF</th>
+            <th>ATR Box</th>
+            <th>Trad. Box</th>
+            <th>% Box</th>
+            <th>SL (Boxes)</th>
+            <th>SL (₹ Pts)</th>
+            <th>Target</th>
+            <th>Bricks/Day</th>
+            <th>Hold Time</th>
+            <th>Lot Value/Box</th>
+          </tr>
+        </thead>
+        <tbody id="tradBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Formula Section -->
+  <div class="formula-section">
+    <h4>📐 Box Size Calculation Formulas</h4>
+    <div class="formula-grid">
+      <div class="formula-card">
+        <div class="fc-label">ATR Method (Best for Non-Repaint)</div>
+        <div class="fc-formula">
+          15-Second = ATR(14) × 0.05<br>
+          30-Second = ATR(14) × 0.10<br>
+          3-Min Scalp = ATR(14) × 0.15<br>
+          Scalping (1-5m) = ATR(14) × 0.20<br>
+          Intraday (5-15m) = ATR(14) × 0.50<br>
+          Swing = ATR(14) × 1.00<br>
+          Positional = ATR(14) × 2.50
+        </div>
+        <div class="fc-example">15s & 30s use ultra-small ATR fractions for tick-level entries. Volatility-adaptive. <strong>Best for non-repainting close-based Renko.</strong></div>
+      </div>
+      <div class="formula-card">
+        <div class="fc-label">Traditional Fixed Method</div>
+        <div class="fc-formula">
+          Based on CMP price level (15s/30s/3m/Scalp/Intra/Swing/Pos):<br>
+          CMP > ₹40K → 3/5/8/15/50/200/500<br>
+          CMP > ₹10K → 1/2/4/5/25/75/200<br>
+          CMP > ₹1K → 0.25/0.5/1/1/5/20/50<br>
+          CMP > ₹100 → 0.1/0.25/0.25/0.5/1/3/10
+        </div>
+        <div class="fc-example">Simple fixed values. 15s/30s boxes are ultra-tight — best for liquid indices (Nifty, BankNifty). Easy to remember.</div>
+      </div>
+      <div class="formula-card">
+        <div class="fc-label">Percentage Method</div>
+        <div class="fc-formula">
+          Scalping = CMP × 0.10%<br>
+          Intraday = CMP × 0.30%<br>
+          Swing = CMP × 0.80%<br>
+          Positional = CMP × 2.00%
+        </div>
+        <div class="fc-example">Proportional to price. Good for comparing across different price instruments. Scales naturally.</div>
+      </div>
+      <div class="formula-card">
+        <div class="fc-label">Options Premium Adjustment</div>
+        <div class="fc-formula">
+          ATM Options = Futures Box × 0.5 to 0.75<br>
+          OTM Options = Futures Box × 0.3 to 0.5<br>
+          Deep ITM = Futures Box × 0.8 to 1.0
+        </div>
+        <div class="fc-example">Options premiums decay over time and move less than underlying. Tighter boxes needed. Adjust for delta & days to expiry.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="notes">
+    <h4>📌 Non-Repainting Renko Rules & Usage Guide (All 7 Timeframes)</h4>
+    <div class="notes-grid">
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Non-Repaint Source:</strong> ALWAYS use "Close" as Renko source, NOT "High/Low" or "OHLC". Close-based Renko bricks don't repaint once formed.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>15-Second Renko:</strong> Box = 0.05× ATR. Ultra-fast tick-level scalping. 100-200+ bricks/day. Best ONLY for Nifty/BankNifty futures — needs extreme liquidity. SL = 2 boxes, Target = 2 boxes. Hold 5-30 seconds.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>30-Second Renko:</strong> Box = 0.10× ATR. Fast scalping with slightly more noise filtering. 60-120 bricks/day. Works well for index futures and top liquid stocks. SL = 2 boxes, Target = 3 boxes. Hold 30s-2 min.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>3-Min Scalp:</strong> Box = 0.15× ATR. Sweet spot between ultra-fast and regular scalping. 45-90 bricks/day. Good for both indices and liquid stock futures. SL = 2 boxes, Target = 3 boxes.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Scalping (1-5 min):</strong> Box = 0.2× ATR. Standard scalping. 40-80 bricks/day. Quick trades, 2-box SL, 3-box target. Works for all F&O stocks.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Intraday (5-15 min):</strong> Box = 0.5× ATR. 10-25 bricks/day. Clean trends, 3-box SL, 5-box target. <strong>Best balance of signals vs noise for day trading.</strong></span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Swing (1hr-Daily):</strong> Box = 1× ATR. 3-8 bricks/day. Filters intraday noise. 3-box SL, 6-box target. Ideal for stock futures multi-day holds.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Positional (Daily-Wkly):</strong> Box = 2.5× ATR. 1-3 bricks/week. Major trends only. 4-box SL, 10-box target. For portfolio-level trend following.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>15s/30s Warning:</strong> Ultra-fast Renko generates many bricks. Slippage, spread & charges become significant. Use ONLY with limit orders, proper L2 data, and low-latency broker (Fyers, Zerodha). Avoid for illiquid stocks.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Brick Confirmation:</strong> Wait for brick to CLOSE (color change confirmed) before entering. Don't enter mid-brick. This is the key to non-repainting.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Volume Filter:</strong> Combine Renko with volume. High volume brick reversals = stronger signals. Essential for 15s/30s where noise is high.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Options Renko:</strong> Use 50-75% of futures box for ATM options. For 15s/30s options scalping — only use weekly ATM options with tight spreads.</span></div>
+      <div class="note-row"><span class="note-dot"></span><span class="note-txt"><strong>Platforms:</strong> TradingView (Renko source=Close), Fyers (supports tick Renko), Zerodha Kite. For 15s/30s, ensure your platform supports sub-minute Renko construction.</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================================================================
+// COMPLETE NSE F&O INSTRUMENT DATABASE — ALL 200+ STOCKS + INDICES
+// Prices, ATR(14), Daily Range, Lot Sizes as of Feb 2025
+// ATR is estimated from recent volatility profiles
+// ===================================================================
+
+function makeInst(symbol, name, price, lotSize, atrPct) {
+  const atr14 = Math.round(price * atrPct / 100 * 10) / 10;
+  const dailyRange = Math.round(atr14 * 1.18);
+  return { symbol, name, price, lotSize, atr14, dailyRange, tick: 0.05, atrPct };
+}
+
+// Helper for options
+function makeOpt(symbol, name, premium, lotSize, underlying, ulPrice) {
+  const atr14 = Math.round(premium * 0.25 * 10) / 10;
+  return { symbol, name, price: premium, lotSize, atr14, dailyRange: Math.round(atr14*1.3), tick: 0.05, atrPct: (atr14/premium*100).toFixed(1), isOption: true, underlying, ulPrice };
+}
+
+const DB = {
+index_futures: [
+  makeInst("NIFTY","Nifty 50 Futures",23200,65,1.2),
+  makeInst("BANKNIFTY","Bank Nifty Futures",49500,30,1.25),
+  makeInst("FINNIFTY","Fin Nifty Futures",23100,60,1.15),
+  makeInst("MIDCPNIFTY","Midcap Nifty Select Futures",11800,120,1.8),
+  makeInst("SENSEX","Sensex Futures (BSE)",76500,10,1.1),
+  makeInst("BANKEX","Bankex Futures (BSE)",56200,15,1.25),
+],
+stock_futures: [
+  makeInst("360ONE","360 ONE WAM",780,500,2.3),
+  makeInst("ABB","ABB India",7800,125,2.1),
+  makeInst("ABCAPITAL","Aditya Birla Capital",195,3100,2.8),
+  makeInst("ADANIENSOL","Adani Energy Solutions",790,675,3.2),
+  makeInst("ADANIENT","Adani Enterprises",2350,309,3.2),
+  makeInst("ADANIGREEN","Adani Green Energy",1050,600,3.5),
+  makeInst("ADANIPORTS","Adani Ports & SEZ",1180,475,2.4),
+  makeInst("ALKEM","Alkem Laboratories",5200,125,1.9),
+  makeInst("AMBER","Amber Enterprises",6200,100,2.8),
+  makeInst("AMBUJACEM","Ambuja Cements",520,1050,2.2),
+  makeInst("ANGELONE","Angel One",2350,250,3.5),
+  makeInst("APLAPOLLO","APL Apollo Tubes",1550,350,2.6),
+  makeInst("APOLLOHOSP","Apollo Hospitals",6800,125,2.0),
+  makeInst("ASHOKLEY","Ashok Leyland",225,5000,2.8),
+  makeInst("ASIANPAINT","Asian Paints",2280,250,1.8),
+  makeInst("ASTRAL","Astral Limited",1450,425,2.5),
+  makeInst("AUBANK","AU Small Finance Bank",580,1000,2.8),
+  makeInst("AUROPHARMA","Aurobindo Pharma",1250,550,2.3),
+  makeInst("AXISBANK","Axis Bank",1120,625,2.1),
+  makeInst("BAJAJ-AUTO","Bajaj Auto",8900,75,1.8),
+  makeInst("BAJAJFINSV","Bajaj Finserv",1780,250,2.2),
+  makeInst("BAJAJHLDNG","Bajaj Holdings",10500,50,1.9),
+  makeInst("BAJFINANCE","Bajaj Finance",8400,750,2.1),
+  makeInst("BANDHANBNK","Bandhan Bank",165,3600,3.0),
+  makeInst("BANKBARODA","Bank of Baroda",240,2925,2.7),
+  makeInst("BANKINDIA","Bank of India",108,5200,3.2),
+  makeInst("BDL","Bharat Dynamics",1420,350,3.2),
+  makeInst("BEL","Bharat Electronics",290,1425,2.8),
+  makeInst("BHARATFORG","Bharat Forge",1280,500,2.5),
+  makeInst("BHARTIARTL","Bharti Airtel",1620,475,2.0),
+  makeInst("BHEL","BHEL",225,2625,3.5),
+  makeInst("BIOCON","Biocon",340,2500,2.8),
+  makeInst("BLUESTARCO","Blue Star",1850,325,2.4),
+  makeInst("BOSCHLTD","Bosch Ltd",32000,25,2.0),
+  makeInst("BPCL","BPCL",295,1975,2.5),
+  makeInst("BRITANNIA","Britannia Industries",4900,125,1.7),
+  makeInst("BSE","BSE Ltd",5200,375,3.8),
+  makeInst("CAMS","CAMS",4800,750,2.2),
+  makeInst("CANBK","Canara Bank",95,6750,3.0),
+  makeInst("CDSL","CDSL",1550,475,3.2),
+  makeInst("CGPOWER","CG Power",620,850,3.0),
+  makeInst("CHOLAFIN","Cholamandalam Finance",1350,625,2.4),
+  makeInst("CIPLA","Cipla",1480,375,2.0),
+  makeInst("COALINDIA","Coal India",390,1350,2.3),
+  makeInst("COFORGE","Coforge",7500,375,2.5),
+  makeInst("COLPAL","Colgate Palmolive",2750,225,1.6),
+  makeInst("CONCOR","Container Corp",750,1250,2.5),
+  makeInst("CROMPTON","Crompton Greaves",370,1800,2.6),
+  makeInst("CUMMINSIND","Cummins India",3200,200,2.3),
+  makeInst("DABUR","Dabur India",520,1250,1.8),
+  makeInst("DALBHARAT","Dalmia Bharat",1800,325,2.6),
+  makeInst("DELHIVERY","Delhivery",310,2075,3.5),
+  makeInst("DIVISLAB","Divi's Laboratories",5800,100,2.0),
+  makeInst("DIXON","Dixon Technologies",15500,50,3.0),
+  makeInst("DLF","DLF",720,825,2.7),
+  makeInst("DMART","Avenue Supermarts (DMart)",3500,150,2.0),
+  makeInst("DRREDDY","Dr. Reddy's Labs",1180,625,2.0),
+  makeInst("EICHERMOT","Eicher Motors",5100,100,2.0),
+  makeInst("ETERNAL","Zomato (Eternal)",225,2425,3.5),
+  makeInst("EXIDEIND","Exide Industries",380,1800,2.5),
+  makeInst("FEDERALBNK","Federal Bank",195,5000,2.5),
+  makeInst("FORTIS","Fortis Healthcare",620,775,2.3),
+  makeInst("GAIL","GAIL India",185,3150,2.5),
+  makeInst("GLENMARK","Glenmark Pharma",1550,375,2.5),
+  makeInst("GMRAIRPORT","GMR Airports",78,6975,3.8),
+  makeInst("GODREJCP","Godrej Consumer",1150,500,2.0),
+  makeInst("GODREJPROP","Godrej Properties",2100,275,3.0),
+  makeInst("GRASIM","Grasim Industries",2550,250,2.1),
+  makeInst("HAL","Hindustan Aeronautics",4200,150,2.8),
+  makeInst("HAVELLS","Havells India",1600,500,2.2),
+  makeInst("HCLTECH","HCL Technologies",1680,350,2.3),
+  makeInst("HDFCAMC","HDFC AMC",4100,300,2.0),
+  makeInst("HDFCBANK","HDFC Bank",1720,550,1.7),
+  makeInst("HDFCLIFE","HDFC Life Insurance",620,1100,2.2),
+  makeInst("HEROMOTOCO","Hero MotoCorp",4400,150,2.0),
+  makeInst("HINDALCO","Hindalco",640,700,2.5),
+  makeInst("HINDPETRO","Hindustan Petroleum",380,2025,3.0),
+  makeInst("HINDUNILVR","Hindustan Unilever",2350,300,1.7),
+  makeInst("HINDZINC","Hindustan Zinc",450,1225,2.5),
+  makeInst("HUDCO","HUDCO",215,2775,3.5),
+  makeInst("ICICIBANK","ICICI Bank",1280,700,1.9),
+  makeInst("ICICIGI","ICICI Lombard",1800,325,2.0),
+  makeInst("ICICIPRULI","ICICI Prudential Life",600,925,2.3),
+  makeInst("IDEA","Vodafone Idea",8,71475,5.0),
+  makeInst("IDFCFIRSTB","IDFC First Bank",62,9275,3.5),
+  makeInst("IEX","Indian Energy Exchange",175,3750,2.8),
+  makeInst("INDHOTEL","Indian Hotels",680,1000,2.5),
+  makeInst("INDIANB","Indian Bank",530,1000,2.7),
+  makeInst("INDIGO","InterGlobe Aviation",4400,150,2.2),
+  makeInst("INDUSINDBK","IndusInd Bank",780,700,3.0),
+  makeInst("INDUSTOWER","Indus Towers",340,1700,2.8),
+  makeInst("INFY","Infosys",1520,400,2.1),
+  makeInst("INOXWIND","Inox Wind",160,3575,4.0),
+  makeInst("IOC","Indian Oil Corp",130,4875,2.5),
+  makeInst("IRCTC","IRCTC",780,875,2.5),
+  makeInst("IREDA","IREDA",175,3450,4.0),
+  makeInst("IRFC","IRFC",130,4250,3.2),
+  makeInst("ITC","ITC",435,1600,1.8),
+  makeInst("JINDALSTEL","Jindal Steel & Power",880,625,2.8),
+  makeInst("JIOFIN","Jio Financial Services",240,2350,3.2),
+  makeInst("JSWENERGY","JSW Energy",520,1000,2.8),
+  makeInst("JSWSTEEL","JSW Steel",940,675,2.5),
+  makeInst("JUBLFOOD","Jubilant FoodWorks",620,1250,2.5),
+  makeInst("KALYANKJIL","Kalyan Jewellers",520,1175,3.2),
+  makeInst("KAYNES","Kaynes Technology",5500,100,3.5),
+  makeInst("KEI","KEI Industries",3800,175,2.6),
+  makeInst("KFINTECH","KFin Technologies",1050,500,2.8),
+  makeInst("KOTAKBANK","Kotak Mahindra Bank",1950,2000,1.9),
+  makeInst("KPITTECH","KPIT Technologies",1350,425,3.0),
+  makeInst("LAURUSLABS","Laurus Labs",540,850,3.0),
+  makeInst("LICHSGFIN","LIC Housing Finance",580,1000,2.8),
+  makeInst("LICI","LIC of India",820,700,2.5),
+  makeInst("LODHA","Macrotech Developers",1250,450,2.8),
+  makeInst("LT","Larsen & Toubro",3480,175,2.0),
+  makeInst("LTF","L&T Finance",140,2250,2.8),
+  makeInst("LTIM","LTIMindtree",5200,150,2.3),
+  makeInst("LUPIN","Lupin",2200,425,2.2),
+  makeInst("M&M","Mahindra & Mahindra",2850,200,2.3),
+  makeInst("MANAPPURAM","Manappuram Finance",185,3000,3.0),
+  makeInst("MANKIND","Mankind Pharma",2500,225,2.2),
+  makeInst("MARICO","Marico",620,1200,1.8),
+  makeInst("MARUTI","Maruti Suzuki",11800,50,2.0),
+  makeInst("MAXHEALTH","Max Healthcare",1020,525,2.5),
+  makeInst("MAZDOCK","Mazagon Dock",2600,200,3.5),
+  makeInst("MCX","MCX",5600,625,2.8),
+  makeInst("MFSL","Max Financial Services",1100,400,2.5),
+  makeInst("MOTHERSON","Samvardhana Motherson",145,6150,2.8),
+  makeInst("MPHASIS","Mphasis",2500,275,2.5),
+  makeInst("MUTHOOTFIN","Muthoot Finance",2050,275,2.2),
+  makeInst("NATIONALUM","National Aluminium",175,3750,3.0),
+  makeInst("NAUKRI","Info Edge (Naukri)",6800,375,2.5),
+  makeInst("NBCC","NBCC India",85,6500,3.8),
+  makeInst("NESTLEIND","Nestle India",2200,500,1.6),
+  makeInst("NHPC","NHPC",80,6400,3.0),
+  makeInst("NMDC","NMDC",68,6750,3.0),
+  makeInst("NTPC","NTPC",340,1500,2.2),
+  makeInst("NUVAMA","Nuvama Wealth",6500,500,2.8),
+  makeInst("NYKAA","FSN E-Commerce (Nykaa)",170,3125,3.5),
+  makeInst("OBEROIRLTY","Oberoi Realty",1900,350,2.8),
+  makeInst("OFSS","Oracle Financial Services",11500,75,2.2),
+  makeInst("OIL","Oil India",420,1400,2.8),
+  makeInst("ONGC","ONGC",245,2250,2.5),
+  makeInst("PAGEIND","Page Industries",42000,15,2.2),
+  makeInst("PATANJALI","Patanjali Foods",1650,900,2.8),
+  makeInst("PAYTM","Paytm (One97)",850,725,3.5),
+  makeInst("PERSISTENT","Persistent Systems",5200,100,2.8),
+  makeInst("PETRONET","Petronet LNG",320,1900,2.2),
+  makeInst("PFC","Power Finance Corp",420,1300,2.8),
+  makeInst("PGEL","PG Electroplast",580,950,3.5),
+  makeInst("PHOENIXLTD","Phoenix Mills",1650,350,2.5),
+  makeInst("PIDILITIND","Pidilite Industries",2800,500,1.8),
+  makeInst("PIIND","PI Industries",3500,175,2.2),
+  makeInst("PNB","Punjab National Bank",100,8000,3.0),
+  makeInst("PNBHOUSING","PNB Housing Finance",880,650,3.0),
+  makeInst("POLICYBZR","PB Fintech (PolicyBazaar)",1650,350,3.2),
+  makeInst("POLYCAB","Polycab India",5500,125,2.5),
+  makeInst("POWERGRID","Power Grid Corp",310,1900,2.1),
+  makeInst("POWERINDIA","Hitachi Energy India",11000,50,2.8),
+  makeInst("PPLPHARMA","Piramal Pharma",230,2625,3.2),
+  makeInst("PREMIERENE","Premier Energies",1050,575,4.0),
+  makeInst("PRESTIGE","Prestige Estates",1350,450,2.8),
+  makeInst("RBLBANK","RBL Bank",180,3175,3.2),
+  makeInst("RECLTD","REC Ltd",440,1400,2.8),
+  makeInst("RELIANCE","Reliance Industries",1280,500,2.0),
+  makeInst("RVNL","Rail Vikas Nigam",380,1525,3.5),
+  makeInst("SAIL","SAIL",115,4700,3.0),
+  makeInst("SAMMAANCAP","Sammaan Capital",130,4300,3.2),
+  makeInst("SBICARD","SBI Cards",680,800,2.5),
+  makeInst("SBILIFE","SBI Life Insurance",1550,375,2.0),
+  makeInst("SBIN","State Bank of India",780,750,2.3),
+  makeInst("SHREECEM","Shree Cement",25500,25,2.0),
+  makeInst("SHRIRAMFIN","Shriram Finance",580,825,2.5),
+  makeInst("SIEMENS","Siemens",6600,175,2.2),
+  makeInst("SOLARINDS","Solar Industries",10000,50,2.5),
+  makeInst("SONACOMS","Sona BLW Precision",520,1225,2.8),
+  makeInst("SRF","SRF Ltd",2300,200,2.3),
+  makeInst("SUNPHARMA","Sun Pharma",1750,350,2.0),
+  makeInst("SUPREMEIND","Supreme Industries",4500,175,2.2),
+  makeInst("SUZLON","Suzlon Energy",55,9025,4.0),
+  makeInst("SWIGGY","Swiggy",420,1300,3.8),
+  makeInst("SYNGENE","Syngene International",750,1000,2.2),
+  makeInst("TATACONSUM","Tata Consumer Products",1000,550,2.2),
+  makeInst("TATAELXSI","Tata Elxsi",5800,100,2.8),
+  makeInst("TATAPOWER","Tata Power",390,1450,2.8),
+  makeInst("TATASTEEL","Tata Steel",148,5500,2.8),
+  makeInst("TATATECH","Tata Technologies",720,800,3.0),
+  makeInst("TCS","TCS",3650,175,1.8),
+  makeInst("TECHM","Tech Mahindra",1650,600,2.5),
+  makeInst("TIINDIA","Tube Investments",3400,200,2.5),
+  makeInst("TITAN","Titan Company",3200,175,2.0),
+  makeInst("TORNTPHARM","Torrent Pharma",3200,250,1.9),
+  makeInst("TORNTPOWER","Torrent Power",1450,425,2.2),
+  makeInst("TRENT","Trent Ltd",5500,100,2.8),
+  makeInst("TVSMOTOR","TVS Motor",2400,175,2.3),
+  makeInst("ULTRACEMCO","UltraTech Cement",11200,50,2.0),
+  makeInst("UNIONBANK","Union Bank",118,4425,3.0),
+  makeInst("UNITDSPR","United Spirits",1500,400,2.2),
+  makeInst("UNOMINDA","UNO Minda",1000,550,2.8),
+  makeInst("UPL","UPL Ltd",530,1355,3.0),
+  makeInst("VBL","Varun Beverages",520,1125,2.5),
+  makeInst("VEDL","Vedanta",430,1150,3.0),
+  makeInst("VOLTAS","Voltas",1550,375,2.3),
+  makeInst("WAAREEENER","Waaree Energies",2700,175,3.8),
+  makeInst("WIPRO","Wipro",295,3000,2.3),
+  makeInst("YESBANK","Yes Bank",18,31100,3.8),
+  makeInst("ZYDUSLIFE","Zydus Lifesciences",900,900,2.2),
+],
+index_options: [
+  makeOpt("NIFTY_CE","Nifty ATM Call (CE)",220,65,"NIFTY",23200),
+  makeOpt("NIFTY_PE","Nifty ATM Put (PE)",200,65,"NIFTY",23200),
+  makeOpt("NIFTY_OTM_CE","Nifty OTM Call (+200)",90,65,"NIFTY",23200),
+  makeOpt("NIFTY_OTM_PE","Nifty OTM Put (-200)",80,65,"NIFTY",23200),
+  makeOpt("BANKNIFTY_CE","BankNifty ATM Call (CE)",480,30,"BANKNIFTY",49500),
+  makeOpt("BANKNIFTY_PE","BankNifty ATM Put (PE)",440,30,"BANKNIFTY",49500),
+  makeOpt("BANKNIFTY_OTM_CE","BankNifty OTM Call (+500)",180,30,"BANKNIFTY",49500),
+  makeOpt("BANKNIFTY_OTM_PE","BankNifty OTM Put (-500)",160,30,"BANKNIFTY",49500),
+  makeOpt("FINNIFTY_CE","FinNifty ATM Call (CE)",180,60,"FINNIFTY",23100),
+  makeOpt("FINNIFTY_PE","FinNifty ATM Put (PE)",165,60,"FINNIFTY",23100),
+  makeOpt("MIDCPNIFTY_CE","MidcapNifty ATM Call (CE)",160,120,"MIDCPNIFTY",11800),
+  makeOpt("MIDCPNIFTY_PE","MidcapNifty ATM Put (PE)",145,120,"MIDCPNIFTY",11800),
+],
+stock_options: [
+  makeOpt("RELIANCE_CE","Reliance ATM Call",30,500,"RELIANCE",1280),
+  makeOpt("HDFCBANK_CE","HDFC Bank ATM Call",32,550,"HDFCBANK",1720),
+  makeOpt("ICICIBANK_CE","ICICI Bank ATM Call",26,700,"ICICIBANK",1280),
+  makeOpt("INFY_CE","Infosys ATM Call",32,400,"INFY",1520),
+  makeOpt("TCS_CE","TCS ATM Call",65,175,"TCS",3650),
+  makeOpt("SBIN_CE","SBI ATM Call",18,750,"SBIN",780),
+  makeOpt("AXISBANK_CE","Axis Bank ATM Call",24,625,"AXISBANK",1120),
+  makeOpt("BAJFINANCE_CE","Bajaj Finance ATM Call",180,750,"BAJFINANCE",8400),
+  makeOpt("TATAMOTORS_CE","Tata Motors ATM Call",16,800,"TATAMOTORS",680),
+  makeOpt("KOTAKBANK_CE","Kotak Bank ATM Call",38,2000,"KOTAKBANK",1950),
+  makeOpt("LT_CE","L&T ATM Call",70,175,"LT",3480),
+  makeOpt("TATASTEEL_CE","Tata Steel ATM Call",4,5500,"TATASTEEL",148),
+  makeOpt("BHARTIARTL_CE","Bharti Airtel ATM Call",32,475,"BHARTIARTL",1620),
+  makeOpt("ITC_CE","ITC ATM Call",8,1600,"ITC",435),
+  makeOpt("M&M_CE","M&M ATM Call",65,200,"M&M",2850),
+  makeOpt("SUNPHARMA_CE","Sun Pharma ATM Call",35,350,"SUNPHARMA",1750),
+  makeOpt("ADANIENT_CE","Adani Ent ATM Call",75,309,"ADANIENT",2350),
+  makeOpt("MARUTI_CE","Maruti ATM Call",240,50,"MARUTI",11800),
+  makeOpt("WIPRO_CE","Wipro ATM Call",7,3000,"WIPRO",295),
+  makeOpt("HINDUNILVR_CE","HUL ATM Call",40,300,"HINDUNILVR",2350),
+  makeOpt("HAL_CE","HAL ATM Call",110,150,"HAL",4200),
+  makeOpt("DLF_CE","DLF ATM Call",18,825,"DLF",720),
+  makeOpt("TRENT_CE","Trent ATM Call",140,100,"TRENT",5500),
+  makeOpt("INDIGO_CE","IndiGo ATM Call",90,150,"INDIGO",4400),
+  makeOpt("COALINDIA_CE","Coal India ATM Call",9,1350,"COALINDIA",390),
+]
+};
+
+let currentSegment = 'stock_futures';
+let currentIdx = 0;
+let currentList = DB.stock_futures;
+
+document.getElementById('totalCount').textContent = 
+  DB.index_futures.length + DB.stock_futures.length + DB.index_options.length + DB.stock_options.length;
+
+// ===========================
+// RENKO BOX CALCULATION
+// ===========================
+
+function smartRound(value, price) {
+  if (value <= 0) return 0.05;
+  if (price >= 30000) return Math.round(value / 5) * 5 || 5;
+  if (price >= 10000) return Math.round(value / 2) * 2 || 2;
+  if (price >= 1000) return Math.round(value) || 1;
+  if (price >= 100) return Math.round(value * 2) / 2 || 0.5;
+  if (price >= 10) return Math.round(value * 4) / 4 || 0.25;
+  return Math.round(value * 10) / 10 || 0.1;
+}
+
+// Keys: s15=15sec, s30=30sec, s3m=3min scalp, s=scalping(1-5min), i=intraday(5-15min), sw=swing, p=positional
+// 7 timeframes total
+
+function getTraditionalBox(price, isOpt) {
+  // Returns: {s15, s30, s3m, s, i, sw, p}
+  if (isOpt) {
+    if (price >= 300) return {s15:0.5, s30:1, s3m:1.5, s:2, i:5, sw:15, p:30};
+    if (price >= 100) return {s15:0.25, s30:0.5, s3m:0.75, s:1, i:3, sw:8, p:15};
+    if (price >= 30)  return {s15:0.1, s30:0.25, s3m:0.5, s:0.5, i:1.5, sw:4, p:8};
+    return                   {s15:0.05, s30:0.1, s3m:0.25, s:0.25, i:1, sw:2, p:5};
+  }
+  if (price >= 40000) return {s15:3, s30:5, s3m:8, s:15, i:50, sw:200, p:500};
+  if (price >= 20000) return {s15:2, s30:4, s3m:6, s:10, i:30, sw:100, p:300};
+  if (price >= 10000) return {s15:1, s30:2, s3m:4, s:5, i:25, sw:75, p:200};
+  if (price >= 5000)  return {s15:0.5, s30:1, s3m:2, s:3, i:15, sw:50, p:120};
+  if (price >= 2000)  return {s15:0.5, s30:1, s3m:1.5, s:2, i:10, sw:30, p:80};
+  if (price >= 1000)  return {s15:0.25, s30:0.5, s3m:1, s:1, i:5, sw:20, p:50};
+  if (price >= 500)   return {s15:0.25, s30:0.5, s3m:0.5, s:1, i:3, sw:10, p:25};
+  if (price >= 200)   return {s15:0.1, s30:0.25, s3m:0.5, s:0.5, i:2, sw:5, p:15};
+  if (price >= 100)   return {s15:0.1, s30:0.25, s3m:0.25, s:0.5, i:1, sw:3, p:10};
+  if (price >= 50)    return {s15:0.05, s30:0.1, s3m:0.15, s:0.25, i:0.5, sw:2, p:5};
+  return                     {s15:0.05, s30:0.05, s3m:0.1, s:0.1, i:0.25, sw:1, p:3};
+}
+
+// All 7 timeframe keys
+const TF_KEYS = ['s15','s30','s3m','s','i','sw','p'];
+
+const TF_META = {
+  s15:  { label:'15-Second', icon:'🔥', chartTF:'15-sec', cls:'ultra', color:'#ff1744' },
+  s30:  { label:'30-Second', icon:'💥', chartTF:'30-sec', cls:'ultra2', color:'#ff5252' },
+  s3m:  { label:'3-Min Scalp', icon:'⚡', chartTF:'3-min', cls:'scalp', color:'#ff9100' },
+  s:    { label:'Scalping', icon:'🎯', chartTF:'1-5 min', cls:'scalp2', color:'#ffab40' },
+  i:    { label:'Intraday', icon:'☀️', chartTF:'5-15 min', cls:'intra', color:'#ffd740' },
+  sw:   { label:'Swing', icon:'🌊', chartTF:'1hr-Daily', cls:'swing', color:'#00e676' },
+  p:    { label:'Positional', icon:'🏔️', chartTF:'Daily-Wkly', cls:'pos', color:'#448aff' },
+};
+
+function calcBoxes(inst, atrPeriod) {
+  const mult = atrPeriod == 10 ? 0.92 : atrPeriod == 20 ? 1.08 : 1.0;
+  const atr = inst.atr14 * mult;
+  const p = inst.price;
+  const isOpt = inst.isOption || false;
+  const trad = getTraditionalBox(p, isOpt);
+
+  // ATR multipliers for each timeframe
+  const atrMults = isOpt 
+    ? {s15:0.03, s30:0.06, s3m:0.10, s:0.12, i:0.30, sw:0.60, p:1.00}
+    : {s15:0.05, s30:0.10, s3m:0.15, s:0.20, i:0.50, sw:1.00, p:2.50};
+
+  // Percentage multipliers
+  const pctMults = isOpt
+    ? {s15:0.005, s30:0.010, s3m:0.015, s:0.020, i:0.050, sw:0.100, p:0.200}
+    : {s15:0.0003, s30:0.0005, s3m:0.0008, s:0.001, i:0.003, sw:0.008, p:0.020};
+
+  const slBoxes =  {s15:2, s30:2, s3m:2, s:2, i:3, sw:3, p:4};
+  const tgtBoxes = {s15:2, s30:3, s3m:3, s:3, i:5, sw:6, p:10};
+
+  const holdTime = isOpt
+    ? {s15:'5-30 sec', s30:'30s-2 min', s3m:'1-5 min', s:'2-10 min', i:'10 min-1 hr', sw:'1-4 hours', p:'1-2 days'}
+    : {s15:'5-30 sec', s30:'30s-2 min', s3m:'1-5 min', s:'2-15 min', i:'15 min-2 hr', sw:'1-5 days', p:'1-4 weeks'};
+
+  const result = {};
+  TF_KEYS.forEach(k => {
+    const atrBox = smartRound(atr * atrMults[k], p);
+    const pctBox = smartRound(p * pctMults[k], p);
+    const tradBox = trad[k];
+    const dailyR = inst.dailyRange || atr * 1.15;
+    const bricks = Math.round(dailyR / atrBox);
+    result[k] = {
+      label: TF_META[k].label,
+      icon: TF_META[k].icon,
+      cls: TF_META[k].cls,
+      color: TF_META[k].color,
+      chartTF: TF_META[k].chartTF,
+      atrBox, pctBox, tradBox,
+      recommended: atrBox,
+      sl: slBoxes[k],
+      slPts: +(atrBox * slBoxes[k]).toFixed(2),
+      tgt: tgtBoxes[k],
+      tgtPts: +(atrBox * tgtBoxes[k]).toFixed(2),
+      holdTime: holdTime[k],
+      bricksDay: bricks,
+      lotValue: Math.round(atrBox * inst.lotSize),
+      slLotValue: Math.round(atrBox * slBoxes[k] * inst.lotSize),
+      atrMult: atrMults[k],
+    };
+  });
+  return result;
+}
+
+// ===========================
+// UI RENDERING
+// ===========================
+
+function onSegmentChange() {
+  currentSegment = document.getElementById('segment').value;
+  currentList = DB[currentSegment];
+  currentIdx = 0;
+  document.getElementById('searchInput').value = '';
+  recalc();
+}
+
+function filterInstruments() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const dd = document.getElementById('dropdown');
+  dd.innerHTML = '';
+  if (!q) { dd.classList.remove('open'); return; }
+  
+  const matches = currentList.filter(inst => 
+    inst.symbol.toLowerCase().includes(q) || inst.name.toLowerCase().includes(q)
+  ).slice(0, 25);
+  
+  if (matches.length === 0) { dd.classList.remove('open'); return; }
+  
+  matches.forEach((inst, realIdx) => {
+    const idx = currentList.indexOf(inst);
+    const div = document.createElement('div');
+    div.className = 'search-item';
+    div.innerHTML = `<span><span class="sym">${inst.symbol}</span> <span class="name">${inst.name}</span></span><span class="price">₹${inst.price.toLocaleString('en-IN')}</span>`;
+    div.onclick = () => {
+      currentIdx = idx;
+      document.getElementById('searchInput').value = inst.symbol + ' — ' + inst.name;
+      dd.classList.remove('open');
+      recalc();
+    };
+    dd.appendChild(div);
+  });
+  dd.classList.add('open');
+}
+
+function openDropdown() {
+  document.getElementById('searchInput').select();
+  filterInstruments();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-wrap')) {
+    document.getElementById('dropdown').classList.remove('open');
+  }
+});
+
+function recalc() {
+  const inst = currentList[currentIdx];
+  if (!inst) return;
+  const atrPeriod = parseInt(document.getElementById('atrPeriod').value);
+  const mult = atrPeriod == 10 ? 0.92 : atrPeriod == 20 ? 1.08 : 1.0;
+
+  // Update info strip
+  document.getElementById('iSym').textContent = inst.symbol;
+  document.getElementById('iPrice').textContent = '₹' + inst.price.toLocaleString('en-IN');
+  document.getElementById('iATR').textContent = (inst.atr14 * mult).toFixed(1);
+  document.getElementById('iRange').textContent = '₹' + inst.dailyRange;
+  document.getElementById('iLot').textContent = inst.lotSize.toLocaleString();
+  document.getElementById('iTick').textContent = inst.tick;
+  document.getElementById('iATRP').textContent = inst.atrPct + '%';
+
+  const boxes = calcBoxes(inst, atrPeriod);
+
+  // Update recommendation banner
+  document.getElementById('recSymbol').textContent = inst.symbol;
+  const recGrid = document.getElementById('recGrid');
+  recGrid.innerHTML = '';
+
+  TF_KEYS.forEach(k => {
+    const b = boxes[k];
+    const card = document.createElement('div');
+    card.className = `rec-card`;
+    card.style.borderLeftColor = b.color;
+    card.innerHTML = `
+      <div class="rc-label" style="color:${b.color}">${b.icon} ${b.label}</div>
+      <div class="rc-box" style="color:${b.color}">${b.recommended}</div>
+      <div class="rc-unit">pts/box — ${b.chartTF} chart</div>
+      <div class="rc-details">
+        <div class="rc-detail"><span class="dl">ATR × ${b.atrMult}</span><span class="dv">${b.atrBox} pts</span></div>
+        <div class="rc-detail"><span class="dl">Traditional</span><span class="dv">${b.tradBox} pts</span></div>
+        <div class="rc-detail"><span class="dl">SL (${b.sl} box)</span><span class="dv">${b.slPts} pts</span></div>
+        <div class="rc-detail"><span class="dl">Target (${b.tgt} box)</span><span class="dv">${b.tgtPts} pts</span></div>
+        <div class="rc-detail"><span class="dl">Bricks/Day</span><span class="dv">~${b.bricksDay}</span></div>
+        <div class="rc-detail"><span class="dl">Hold Time</span><span class="dv">${b.holdTime}</span></div>
+        <div class="rc-detail"><span class="dl">₹/Box (Lot)</span><span class="dv">₹${b.lotValue.toLocaleString('en-IN')}</span></div>
+        <div class="rc-detail"><span class="dl">SL per Lot</span><span class="dv">₹${b.slLotValue.toLocaleString('en-IN')}</span></div>
+      </div>
+    `;
+    recGrid.appendChild(card);
+  });
+
+  // Traditional table
+  const tbody = document.getElementById('tradBody');
+  tbody.innerHTML = '';
+  TF_KEYS.forEach(k => {
+    const b = boxes[k];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="hl" style="color:${b.color}">${b.icon} ${b.label}</td>
+      <td>${b.chartTF}</td>
+      <td>${b.atrBox}</td>
+      <td>${b.tradBox}</td>
+      <td>${b.pctBox}</td>
+      <td>${b.sl}</td>
+      <td>₹${b.slPts}</td>
+      <td>${b.tgt} box (₹${b.tgtPts})</td>
+      <td>~${b.bricksDay}</td>
+      <td>${b.holdTime}</td>
+      <td>₹${b.lotValue.toLocaleString('en-IN')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Init
+window.addEventListener('DOMContentLoaded', () => {
+  onSegmentChange();
+});
+</script>
+</body>
+</html>
